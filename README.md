@@ -46,7 +46,6 @@ The modular system provides the following features:
 
 * Automatic module discovery
 * Automatic Service Provider registration
-* Route prefix per module
 * Module-specific middleware registration
 * Module configuration loading
 * Module migrations
@@ -84,39 +83,6 @@ This will generate a complete module with:
 
 ---
 
-# Auto Route Prefix
-
-Each module automatically gets its own route prefix.
-
-Example module:
-
-```
-Blog
-```
-
-Routes inside the module will automatically become:
-
-```
-/blog
-/blog/posts
-/blog/{id}
-```
-
-Prefix is defined in:
-
-```
-Modules/Blog/config/config.php
-```
-
-Example:
-
-```
-return [
-    'route_prefix' => 'blog'
-];
-```
-
----
 
 # Using Views
 
