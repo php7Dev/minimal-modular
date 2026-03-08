@@ -1,0 +1,1 @@
+<?php return ['route_prefix'=>'blog'];

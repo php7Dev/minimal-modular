@@ -1,0 +1,5 @@
+{
+    "name": "Blog",
+    "enabled": true,
+    "provider": "Modules\\Blog\\Providers\\ModuleServiceProvider"
+}
