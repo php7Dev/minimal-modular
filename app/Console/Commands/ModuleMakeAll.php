@@ -6,15 +6,22 @@ use Illuminate\Console\Command;
 
 class ModuleMakeAll extends Command
 {
-    protected $signature = 'module:make-all {module} {name}';
-    protected $description = 'Create a full module with controller, model, view, middleware';
+    protected $signature = 'module:make-all {module} {name} {layout?}';
+    protected $description = 'Create a full module with controller, model, middleware, service and optional layout module';
 
     public function handle()
     {
         $module = ucfirst($this->argument('module'));
-        $name = ucfirst($this->argument('name'));
+        $name   = ucfirst($this->argument('name'));
+        $layout = $this->argument('layout');
 
         $modulePath = base_path("Modules/$module");
+
+        /*
+        |--------------------------------
+        | Create Module Folders
+        |--------------------------------
+        */
 
         $folders = [
             "Controllers",
@@ -24,7 +31,8 @@ class ModuleMakeAll extends Command
             "routes",
             "views",
             "config",
-            "migrations"
+            "migrations",
+            "Services"
         ];
 
         foreach ($folders as $folder) {
@@ -173,7 +181,37 @@ class {$name}Middleware
 
         /*
         |--------------------------------
-        | Route
+        | Service Class
+        |--------------------------------
+        */
+
+        file_put_contents(
+"$modulePath/Services/{$name}Service.php",
+"<?php
+
+namespace Modules\\$module\\Services;
+
+use Modules\\$module\\Models\\$name;
+
+class {$name}Service
+{
+    protected \$$name;
+
+    public function __construct($name \$$name)
+    {
+        \$this->$name = \$$name;
+    }
+
+    public function all()
+    {
+        return \$this->{$name}::all();
+    }
+}
+");
+
+        /*
+        |--------------------------------
+        | Routes
         |--------------------------------
         */
 
@@ -189,49 +227,144 @@ Route::get('/".strtolower($module)."', [{$name}Controller::class,'index']);
 
         /*
         |--------------------------------
+        | Layout Module (Optional)
+        |--------------------------------
+        */
+
+        if ($layout) {
+
+            $layoutModule = ucfirst($layout);
+            $layoutPath = base_path("Modules/$layoutModule");
+
+            @mkdir("$layoutPath/views/layouts",0755,true);
+            @mkdir("$layoutPath/Providers",0755,true);
+
+            /*
+            | module.json
+            */
+
+            if (!file_exists("$layoutPath/module.json")) {
+
+                file_put_contents(
+                    "$layoutPath/module.json",
+                    json_encode([
+                        "name"=>$layoutModule,
+                        "enabled"=>true,
+                        "provider"=>"Modules\\$layoutModule\\Providers\\ModuleServiceProvider"
+                    ], JSON_PRETTY_PRINT)
+                );
+            }
+
+            /*
+            | Layout View
+            */
+
+            if (!file_exists("$layoutPath/views/layouts/app.blade.php")) {
+
+                file_put_contents(
+"$layoutPath/views/layouts/app.blade.php",
+"<!DOCTYPE html>
+<html>
+<head>
+<title>@yield('title')</title>
+</head>
+
+<body>
+
+<header>
+<h2>$layoutModule Layout</h2>
+</header>
+
+<main>
+@yield('content')
+</main>
+
+</body>
+</html>"
+                );
+            }
+
+            /*
+            | Layout Service Provider
+            */
+
+            if (!file_exists("$layoutPath/Providers/ModuleServiceProvider.php")) {
+
+                file_put_contents(
+"$layoutPath/Providers/ModuleServiceProvider.php",
+"<?php
+
+namespace Modules\\$layoutModule\\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+class ModuleServiceProvider extends ServiceProvider
+{
+    public function boot()
+    {
+        \$modulePath = dirname(__DIR__);
+
+        if (is_dir(\$modulePath.'/views')) {
+            \$this->loadViewsFrom(\$modulePath.'/views','".strtolower($layoutModule)."');
+        }
+    }
+}
+");
+            }
+
+            /*
+            | Register Provider Automatically
+            */
+
+            $providersFile = base_path('bootstrap/providers.php');
+
+            if (file_exists($providersFile)) {
+
+                $providerClass = "Modules\\$layoutModule\\Providers\\ModuleServiceProvider::class";
+
+                $content = file_get_contents($providersFile);
+
+                if (!str_contains($content,$providerClass)) {
+
+                    $content = str_replace(
+                        "];",
+                        "    $providerClass,\n];",
+                        $content
+                    );
+
+                    file_put_contents($providersFile,$content);
+                }
+            }
+        }
+
+        /*
+        |--------------------------------
         | View
         |--------------------------------
         */
 
+        if ($layout) {
+
+            $viewContent = "@extends('".strtolower($layout)."::layouts.app')
+
+@section('title','$module')
+
+@section('content')
+
+<h1>$module module works 🎉</h1>
+
+@endsection";
+
+        } else {
+
+            $viewContent = "<h1>$module module works 🎉</h1>";
+        }
+
         file_put_contents(
-"$modulePath/views/".strtolower($name).".blade.php",
-"<h1>$module module works 🎉</h1>"
+            "$modulePath/views/".strtolower($name).".blade.php",
+            $viewContent
         );
 
         $this->info("Module $module created successfully!");
-
-
-
-        /*
-        |--------------------------------
-        | Service Class
-        |--------------------------------
-        */
-
-            $servicePath = "$modulePath/Services";
-            if (!is_dir($servicePath)) mkdir($servicePath, 0755, true);
-
-            file_put_contents("$servicePath/{$name}Service.php", "<?php
-
-            namespace Modules\\$module\\Services;
-
-            use Modules\\$module\\Models\\$name;
-
-            class {$name}Service
-            {
-                protected \$$name;
-
-                public function __construct($name \$$name)
-                {
-                    \$this->$name = \$$name;
-                }
-
-                // Example method
-                public function all()
-                {
-                    return \$this->{$name}::all();
-                }
-            }
-            ");
     }
 }

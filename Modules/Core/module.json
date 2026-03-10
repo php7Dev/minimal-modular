@@ -1,0 +1,5 @@
+{
+    "name": "Core",
+    "enabled": true,
+    "provider": "Modules\\Core\\Providers\\ModuleServiceProvider"
+}
